@@ -123,25 +123,29 @@ func (h *Handler) buildIngress(name string, namespace string, hosts []string, cl
 }
 
 func (h *Handler) attachServiceToIngress(i *networking.Ingress, s core.Service) {
-	for j, p := range i.Spec.Rules[0].HTTP.Paths {
-		if p.Backend.Service.Name == s.Name {
-			i.Spec.Rules[0].HTTP.Paths = append(i.Spec.Rules[0].HTTP.Paths[:j], i.Spec.Rules[0].HTTP.Paths[j+1:]...)
-			break
+
+	for _, rule := range i.Spec.Rules {
+		for j, p := range rule.HTTP.Paths {
+			if p.Backend.Service.Name == s.Name {
+				rule.HTTP.Paths = append(rule.HTTP.Paths[:j], rule.HTTP.Paths[j+1:]...)
+				break
+			}
 		}
-	}
-	pathType := networking.PathType(viper.GetString(config.IngressPathType))
-	i.Spec.Rules[0].HTTP.Paths = append(i.Spec.Rules[0].HTTP.Paths, networking.HTTPIngressPath{
-		Path:     s.Annotations[viper.GetString(config.IngressPathAnnotation)],
-		PathType: &pathType,
-		Backend: networking.IngressBackend{
-			Service: &networking.IngressServiceBackend{
-				Name: s.Name,
-				Port: networking.ServiceBackendPort{
-					Number: s.Spec.Ports[0].Port,
+		pathType := networking.PathType(viper.GetString(config.IngressPathType))
+		rule.HTTP.Paths = append(rule.HTTP.Paths, networking.HTTPIngressPath{
+			Path:     s.Annotations[viper.GetString(config.IngressPathAnnotation)],
+			PathType: &pathType,
+			Backend: networking.IngressBackend{
+				Service: &networking.IngressServiceBackend{
+					Name: s.Name,
+					Port: networking.ServiceBackendPort{
+						Number: s.Spec.Ports[0].Port,
+					},
 				},
 			},
-		},
-	})
+		})
+	}
+
 }
 
 func (h *Handler) buildDesiredIngresses() (ingresses map[string]*networking.Ingress, err error) {

@@ -235,6 +235,20 @@ func Test_Handler(t *testing.T) {
 		assert.Len(t, l, 1)
 		assert.Len(t, l["www-example-com"].Spec.Rules[0].HTTP.Paths, 2)
 	})
+	t.Run("build desired ingress with multiple hosts", func(t *testing.T) {
+		s := service.DeepCopy()
+		s.Annotations[viper.GetString(config.IngressHostAnnotation)] = "www.example.com,www2.example.com"
+		ctx = context.WithValue(ctx, viper.GetString(config.ContextFakeObjectsKey), []runtime.Object{s})
+		_ = kube.GetClientSet(ctx, logger)
+		h.services, _ = h.fetchServices()
+		l, err := h.buildDesiredIngresses()
+		assert.NoError(t, err)
+		assert.Len(t, l, 1)
+		assert.Len(t, l["www-example-com"].Spec.Rules, 2)
+		assert.Len(t, l["www-example-com"].Spec.Rules[0].HTTP.Paths, 1)
+		assert.Len(t, l["www-example-com"].Spec.Rules[1].HTTP.Paths, 1)
+	})
+
 	t.Run("build desired ingresses with namespace mismatch error", func(t *testing.T) {
 		s2 := service.DeepCopy()
 		s2.Name = "service2"
